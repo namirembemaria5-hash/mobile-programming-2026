@@ -3,4 +3,6 @@
     <string name="student_name">Namirembe Maria</string>
     <string name="programme">Computer Science</string>
     <string name="reg_number">24/2/306/W/200</string>
+    <string name="search_placeholder">search_student</string>
+
 </resources>

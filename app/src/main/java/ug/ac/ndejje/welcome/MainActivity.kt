@@ -7,44 +7,43 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
-
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.HorizontalDivider
-
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import ug.ac.ndejje.welcome.ui.theme.NdejjeWelcomeAppTheme
 
 
@@ -54,7 +53,29 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             NdejjeWelcomeAppTheme {
-                StudentInfo()
+
+                // Inside MainActivity setContent { ... }
+                val navController = rememberNavController()
+
+                NavHost(navController = navController, startDestination = "list") {
+                    // SCREEN A: The List
+                    composable("list") {
+                        StudentDirectory(onNavigateToProfile = { id ->
+                            navController.navigate("profile/$id") // Move to the profile screen
+                        })
+                    }
+
+                    // SCREEN B: The Detail
+                    composable("profile/{regNo}") { backStackEntry ->
+                        val regNo = backStackEntry.arguments?.getString("regNo")
+                        val student = StudentProvider.studentList.find { it.regNumber == regNo }
+
+                        if (student != null) {
+                            ProfileDetailScreen(student = student, onBack = { navController.popBackStack() })
+                        }
+                    }
+                }
+
             }
         }
     }
@@ -62,87 +83,108 @@ class MainActivity : ComponentActivity() {
 
 
 @Composable
-fun StudentInfo() {
-    val profileImage = painterResource(R.drawable.picture)
-    val logoImage = painterResource(R.drawable.ndejje_university_logo)
-    Column(
-        modifier = Modifier.padding(10.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ){
-
-
-        Box() {
-            Image(painter = profileImage, contentDescription = "Student Photo",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.clip(shape = RoundedCornerShape(percent = 10))
-            )
-            Image(
-                painter = logoImage,
-                contentDescription = null,
-                modifier= Modifier.size(80.dp).align(Alignment.BottomEnd).padding(all=4.dp)
-            )
-
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = stringResource(R.string.student_name),
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
-
+fun StudentInfo(student: Student) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Image(
+            painter = painterResource(id = student.profileImageId),
+            contentDescription = "Profile Picture",
+            modifier = Modifier
+                .size(120.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .padding(bottom = 8.dp),
+            contentScale = ContentScale.Crop
         )
         Text(
-            text = stringResource(R.string.programme),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.primary
-
-
+            text = student.name,
+            style = MaterialTheme.typography.headlineSmall
         )
-        HorizontalDivider(
-            modifier = Modifier.padding(vertical = 12.dp, horizontal = 24.dp),
-            thickness = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant
+        Text(
+            text = student.regNumber,
+            color = Color.Gray
         )
-        Row(){
+        if (student.isVerified) {
             Text(
-                text = "REG NO:  ",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.primary
-
-            )
-            Spacer(modifier = Modifier.width(10.dp))
-            Text(
-                text = stringResource(R.string.reg_number),
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace,
-                color = MaterialTheme.colorScheme.primary
+                text = "Verified Student",
+                color = Color(0xFF4CAF50)
             )
         }
     }
 }
 
 @Composable
-fun StudentIdCard(){
+fun StudentIdCard(student: Student, onViewProfile: (String) -> Unit) {
     ElevatedCard(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(all=16.dp),
-        shape = RoundedCornerShape(size = 16.dp),
+            .padding(16.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
         )
-
-
-    )
-    {
-        StudentInfo()
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            StudentInfo(student)
+            Button(onClick = { onViewProfile(student.regNumber) }) {
+                Text("View Profile")
+            }
+        }
     }
 }
+
+@Composable
+fun StudentDirectory(onNavigateToProfile: (String) -> Unit) {
+
+    // STEP A1: Declare state to hold whatever the user types
+    var searchQuery by remember { mutableStateOf("") }
+
+    // STEP A2: Derive a filtered list — recalculates every time searchQuery changes
+    val filteredStudents = StudentProvider.studentList.filter {
+        it.name.contains(searchQuery, ignoreCase = true)
+    }
+
+    // STEP A3: Column places the TextField above the LazyColumn
+    Column(modifier = Modifier.fillMaxSize()) {
+
+        // STEP A4: The search input field
+        TextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it }, // Updates state on every keystroke
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            placeholder = { Text(stringResource(R.string.search_placeholder)) },
+            leadingIcon = {
+                Icon(Icons.Default.Search, contentDescription = "Search Icon")
+            }
+        )
+
+        // STEP A5: The list now uses filteredStudents, NOT the full list
+        LazyColumn(contentPadding = PaddingValues(16.dp)) {
+            items(filteredStudents) { student ->
+                StudentIdCard(
+                    student = student,
+                    onViewProfile = { regNo -> onNavigateToProfile(regNo) }
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+        }
+            }
+        }
+
+
+
 @Preview(showBackground = true)
 @Composable
-fun NdejjePreview(){
-    NdejjeWelcomeAppTheme{
-        StudentIdCard()
+fun WelcomePreview() {
+    NdejjeWelcomeAppTheme {
+
+
+
     }
 }
