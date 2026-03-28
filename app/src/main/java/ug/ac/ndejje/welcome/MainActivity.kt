@@ -54,31 +54,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             NdejjeWelcomeAppTheme {
 
-                // Inside MainActivity setContent { ... }
-                val navController = rememberNavController()
-
-                NavHost(navController = navController, startDestination = "list") {
-                    // SCREEN A: The List
-                    composable("list") {
-                        StudentDirectory(onNavigateToProfile = { id ->
-                            navController.navigate("profile/$id") // Move to the profile screen
-                        })
-                    }
-
-                    // SCREEN B: The Detail
-                    composable("profile/{regNo}") { backStackEntry ->
-                        val regNo = backStackEntry.arguments?.getString("regNo")
-                        val student = StudentProvider.studentList.find { it.regNumber == regNo }
-
-                        if (student != null) {
-                            ProfileDetailScreen(student = student, onBack = { navController.popBackStack() })
-                        }
-                    }
-                }
-
+                StudentDirectory()
             }
         }
     }
+
 }
 
 
@@ -94,88 +74,46 @@ fun StudentInfo(student: Student) {
                 .padding(bottom = 8.dp),
             contentScale = ContentScale.Crop
         )
-        Text(
-            text = student.name,
-            style = MaterialTheme.typography.headlineSmall
-        )
-        Text(
-            text = student.regNumber,
-            color = Color.Gray
-        )
+        Text(text = student.name, style = MaterialTheme.typography.headlineSmall)
+        Text(text = student.regNumber, color = Color.Gray)
         if (student.isVerified) {
-            Text(
-                text = "Verified Student",
-                color = Color(0xFF4CAF50)
-            )
+            Text("Verified Student", color = Color(0xFF4CAF50))
         }
     }
 }
-
 @Composable
-fun StudentIdCard(student: Student, onViewProfile: (String) -> Unit) {
+fun StudentIdCard(student: Student) {
     ElevatedCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
+        modifier = Modifier.fillMaxWidth().padding(16.dp),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
         )
     ) {
         Column(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
+            modifier = Modifier.padding(16.dp).fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             StudentInfo(student)
-            Button(onClick = { onViewProfile(student.regNumber) }) {
+            Button(onClick = { /*Action Here*/ }) {
                 Text("View Profile")
             }
         }
     }
 }
-
 @Composable
-fun StudentDirectory(onNavigateToProfile: (String) -> Unit) {
-
-    // STEP A1: Declare state to hold whatever the user types
-    var searchQuery by remember { mutableStateOf("") }
-
-    // STEP A2: Derive a filtered list — recalculates every time searchQuery changes
-    val filteredStudents = StudentProvider.studentList.filter {
-        it.name.contains(searchQuery, ignoreCase = true)
+fun StudentDirectory() {
+    val students = StudentProvider.studentList
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp)
+    ) {
+        items(students) { student ->
+            StudentIdCard(student = student)
+            Spacer(modifier = Modifier.height(12.dp))
+        }
     }
-
-    // STEP A3: Column places the TextField above the LazyColumn
-    Column(modifier = Modifier.fillMaxSize()) {
-
-        // STEP A4: The search input field
-        TextField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it }, // Updates state on every keystroke
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            placeholder = { Text(stringResource(R.string.search_placeholder)) },
-            leadingIcon = {
-                Icon(Icons.Default.Search, contentDescription = "Search Icon")
-            }
-        )
-
-        // STEP A5: The list now uses filteredStudents, NOT the full list
-        LazyColumn(contentPadding = PaddingValues(16.dp)) {
-            items(filteredStudents) { student ->
-                StudentIdCard(
-                    student = student,
-                    onViewProfile = { regNo -> onNavigateToProfile(regNo) }
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-
-        }
-            }
-        }
+}
 
 
 
@@ -183,8 +121,7 @@ fun StudentDirectory(onNavigateToProfile: (String) -> Unit) {
 @Composable
 fun WelcomePreview() {
     NdejjeWelcomeAppTheme {
-
-
-
+        val sampleStudent = StudentProvider.studentList[0]
+        StudentIdCard(student = sampleStudent)
     }
 }
