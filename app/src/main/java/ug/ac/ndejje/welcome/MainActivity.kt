@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -21,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
@@ -83,34 +85,75 @@ fun StudentInfo(student: Student) {
 }
 @Composable
 fun StudentIdCard(student: Student) {
+
+    // STEP B1: Each card gets its own private state, starting as false
+    var isPresent by remember { mutableStateOf(false) }
+
+    // STEP B2: Derive border colour from the current state
+    val borderColor = if (isPresent) Color.Green else Color.Transparent
+
     ElevatedCard(
-        modifier = Modifier.fillMaxWidth().padding(16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp)
+            .border(2.dp, borderColor, RoundedCornerShape(16.dp)), // STEP B3
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
         )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             StudentInfo(student)
-            Button(onClick = { /*Action Here*/ }) {
-                Text("View Profile")
+
+            // STEP B4: Button label and colour both react to state
+            Button(
+                onClick = { isPresent = !isPresent }, // Toggle on every click
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isPresent) Color.Gray
+                    else MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Text(if (isPresent) "Present" else "Mark Present")
             }
         }
     }
 }
 @Composable
 fun StudentDirectory() {
-    val students = StudentProvider.studentList
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp)
-    ) {
-        items(students) { student ->
-            StudentIdCard(student = student)
-            Spacer(modifier = Modifier.height(12.dp))
+
+    // STEP A1: Declare state to hold whatever the user types
+    var searchQuery by remember { mutableStateOf("") }
+
+    // STEP A2: Derive a filtered list — recalculates every time searchQuery changes
+    val filteredStudents = StudentProvider.studentList.filter {
+        it.name.contains(searchQuery, ignoreCase = true)
+    }
+
+    // STEP A3: Column places the TextField above the LazyColumn
+    Column(modifier = Modifier.fillMaxSize()) {
+
+        // STEP A4: The search input field
+        TextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it }, // Updates state on every keystroke
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            placeholder = { Text(stringResource(R.string.search_placeholder)) },
+            leadingIcon = {
+                Icon(Icons.Default.Search, contentDescription = "Search Icon")
+            }
+        )
+
+        // STEP A5: The list now uses filteredStudents, NOT the full list
+        LazyColumn(contentPadding = PaddingValues(16.dp)) {
+            items(filteredStudents) { student ->
+                StudentIdCard(student = student)
+                Spacer(modifier = Modifier.height(12.dp))
+            }
         }
     }
 }
@@ -121,7 +164,6 @@ fun StudentDirectory() {
 @Composable
 fun WelcomePreview() {
     NdejjeWelcomeAppTheme {
-        val sampleStudent = StudentProvider.studentList[0]
-        StudentIdCard(student = sampleStudent)
+        StudentDirectory()
     }
 }
