@@ -16,16 +16,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -65,100 +69,125 @@ class MainActivity : ComponentActivity() {
 
 
 @Composable
-fun StudentInfo(student: Student) {
+fun StudentInfo(student: Student, isDetailView: Boolean = false, onBack: () -> Unit = {}) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
+
+        // Show Back Button ONLY in Detail View
+        if (isDetailView) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier.align(Alignment.Start)
+            ) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+            }
+        }
+
         Image(
             painter = painterResource(id = student.profileImageId),
             contentDescription = "Profile Picture",
             modifier = Modifier
-                .size(120.dp)
+                .size(if (isDetailView) 200.dp else 120.dp) // Make image bigger in detail view
                 .clip(RoundedCornerShape(8.dp))
                 .padding(bottom = 8.dp),
             contentScale = ContentScale.Crop
         )
         Text(text = student.name, style = MaterialTheme.typography.headlineSmall)
         Text(text = student.regNumber, color = Color.Gray)
+
         if (student.isVerified) {
             Text("Verified Student", color = Color(0xFF4CAF50))
         }
+
+        // Add extra details if in Detail View
+        if (isDetailView) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Welcome to the student profile. Here you can find more specific academic records and department details.",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(horizontal = 24.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
+
 @Composable
-fun StudentIdCard(student: Student) {
-
-    // STEP B1: Each card gets its own private state, starting as false
-    var isPresent by remember { mutableStateOf(false) }
-
-    // STEP B2: Derive border colour from the current state
-    val borderColor = if (isPresent) Color.Green else Color.Transparent
-
+fun StudentIdCard(student: Student, onViewProfile: () -> Unit) {
     ElevatedCard(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(8.dp)
-            .border(2.dp, borderColor, RoundedCornerShape(16.dp)), // STEP B3
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
         )
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            StudentInfo(student)
+            // Reusing StudentInfo but without the back button for the list card
+            StudentInfo(student = student, isDetailView = false)
 
-            // STEP B4: Button label and colour both react to state
-            Button(
-                onClick = { isPresent = !isPresent }, // Toggle on every click
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isPresent) Color.Gray
-                    else MaterialTheme.colorScheme.primary
-                )
-            ) {
-                Text(if (isPresent) "Present" else "Mark Present")
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(onClick = onViewProfile) {
+                Text("View Profile")
             }
         }
     }
 }
+
 @Composable
 fun StudentDirectory() {
-
-    // STEP A1: Declare state to hold whatever the user types
+    // State for searching
     var searchQuery by remember { mutableStateOf("") }
 
-    // STEP A2: Derive a filtered list — recalculates every time searchQuery changes
-    val filteredStudents = StudentProvider.studentList.filter {
-        it.name.contains(searchQuery, ignoreCase = true)
-    }
+    // State for navigation: holds the student to display, or null if showing the list
+    var selectedStudent by remember { mutableStateOf<Student?>(null) }
 
-    // STEP A3: Column places the TextField above the LazyColumn
-    Column(modifier = Modifier.fillMaxSize()) {
+    // Logic to switch screens
+    if (selectedStudent == null) {
+        // --- LIST VIEW ---
+        Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
+            TextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                placeholder = { Text("Search students...") },
+                leadingIcon = {
+                    Icon(Icons.Default.Search, contentDescription = "Search Icon")
+                }
+            )
 
-        // STEP A4: The search input field
-        TextField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it }, // Updates state on every keystroke
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            placeholder = { Text(stringResource(R.string.search_placeholder)) },
-            leadingIcon = {
-                Icon(Icons.Default.Search, contentDescription = "Search Icon")
+            val filteredStudents = StudentProvider.studentList.filter {
+                it.name.contains(searchQuery, ignoreCase = true)
             }
-        )
 
-        // STEP A5: The list now uses filteredStudents, NOT the full list
-        LazyColumn(contentPadding = PaddingValues(16.dp)) {
-            items(filteredStudents) { student ->
-                StudentIdCard(student = student)
-                Spacer(modifier = Modifier.height(12.dp))
+            LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
+                items(filteredStudents) { student ->
+                    StudentIdCard(
+                        student = student,
+                        onViewProfile = { selectedStudent = student }
+                    )
+                }
             }
+        }
+    } else {
+        // --- DETAIL VIEW ---
+        Box(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
+            StudentInfo(
+                student = selectedStudent!!,
+                isDetailView = true,
+                onBack = { selectedStudent = null }
+            )
         }
     }
 }
-
-
 
 @Preview(showBackground = true)
 @Composable
